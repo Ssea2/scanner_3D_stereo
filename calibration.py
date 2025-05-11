@@ -121,6 +121,6 @@ x, y, w, h = roi
 dst = dst[y:y+h, x:x+w]
 cv.imwrite('calibresult.png', dst)"""
 
-mtx1, dist1 = calcam("cam1_img/*.jpg")
-mtx2, dist2 = calcam("cam2_img/*.jpg")
-R,T = calstereo(mtx1,mtx2,dist1,dist2,"cam1_img/*.jpg","cam2_img/*.jpg")
+mtx1, dist1 = calcam("webcam_L/*.jpg")
+mtx2, dist2 = calcam("webcam_R/*.jpg")
+R,T = calstereo(mtx1,mtx2,dist1,dist2,"webcam_L/*.jpg","webcam_R/*.jpg")
