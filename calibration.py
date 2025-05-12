@@ -2,6 +2,9 @@ import numpy as np
 import cv2 as cv
 import glob
 
+
+# mettre l'objet a 1.7m 
+
 def calcam(img_folder):
         # termination criteria
     criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
@@ -88,7 +91,7 @@ def calstereo(mtx1,mtx2,dist1,dist2, folder_cam_left, folder_cam_right):
             imgpoints_left.append(corners2)
 
             corners1 = cv.cornerSubPix(Rgray,Rcorners, (11,11), (-1,-1), criteria)
-            imgpoints_left.append(corners1)
+            imgpoints_right.append(corners1)
 
             #print("\n\n",corners2)
             # Draw and display the corners
@@ -107,6 +110,24 @@ def calstereo(mtx1,mtx2,dist1,dist2, folder_cam_left, folder_cam_right):
 
     return R,T
 
+def DLT(P1, P2, point1, point2):
+ 
+    A = [point1[1]*P1[2,:] - P1[1,:],
+         P1[0,:] - point1[0]*P1[2,:],
+         point2[1]*P2[2,:] - P2[1,:],
+         P2[0,:] - point2[0]*P2[2,:]
+        ]
+    A = np.array(A).reshape((4,4))
+    #print('A: ')
+    #print(A)
+ 
+    B = A.transpose() @ A
+    from scipy import linalg
+    U, s, Vh = linalg.svd(B, full_matrices = False)
+ 
+    print('Triangulated point: ')
+    print(Vh[3,0:3]/Vh[3,3])
+    return Vh[3,0:3]/Vh[3,3]
 
 """mtx, dist = calcam("img_webcam/*.jpg")
 print(mtx,dist)
@@ -124,3 +145,13 @@ cv.imwrite('calibresult.png', dst)"""
 mtx1, dist1 = calcam("webcam_L/*.jpg")
 mtx2, dist2 = calcam("webcam_R/*.jpg")
 R,T = calstereo(mtx1,mtx2,dist1,dist2,"webcam_L/*.jpg","webcam_R/*.jpg")
+print("stereo Rotation",R)
+print("sterao translation",T)
+
+#RT matrix for C1 is identity.
+RT1 = np.concatenate([np.eye(3), [[0],[0],[0]]], axis = -1)
+P1 = mtx1 @ RT1 #projection matrix for C1
+ 
+#RT matrix for C2 is the R and T obtained from stereo calibration.
+RT2 = np.concatenate([R, T], axis = -1)
+P2 = mtx2 @ RT2 #projection matrix for C2
