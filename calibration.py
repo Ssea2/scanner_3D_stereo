@@ -10,8 +10,8 @@ def calcam(img_folder):
     criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
     
     # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
-    objp = np.zeros((5*7,3), np.float32)
-    objp[:,:2] = np.mgrid[0:7,0:5].T.reshape(-1,2)
+    objp = np.zeros((6*9,3), np.float32)
+    objp[:,:2] = np.mgrid[0:9,0:6].T.reshape(-1,2)
     
     # Arrays to store object points and image points from all the images.
     objpoints = [] # 3d point in real world space
@@ -25,7 +25,7 @@ def calcam(img_folder):
         gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
         img_size=gray.shape[::-1]
         # Find the chess board corners
-        ret, corners = cv.findChessboardCorners(gray, (7,5), None)
+        ret, corners = cv.findChessboardCorners(gray, (9,6), None)
     
         # If found, add object points, image points (after refining them)
         if ret == True:
@@ -35,7 +35,7 @@ def calcam(img_folder):
             imgpoints.append(corners2)
             #print("\n\n",corners2)
             # Draw and display the corners
-            cv.drawChessboardCorners(img, (7,5), corners2, ret)
+            cv.drawChessboardCorners(img, (9,6), corners2, ret)
             cv.imshow('img', img)
             cv.waitKey(500)
     
@@ -54,8 +54,8 @@ def calstereo(mtx1,mtx2,dist1,dist2, folder_cam_left, folder_cam_right):
     criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
 
-    objp = np.zeros((5*7,3), np.float32)
-    objp[:,:2] = np.mgrid[0:7,0:5].T.reshape(-1,2)
+    objp = np.zeros((6*9,3), np.float32)
+    objp[:,:2] = np.mgrid[0:9,0:6].T.reshape(-1,2)
     
     # Arrays to store object points and image points from all the images.
     objpoints = [] # 3d point in real world space
@@ -80,8 +80,8 @@ def calstereo(mtx1,mtx2,dist1,dist2, folder_cam_left, folder_cam_right):
 
 
         # Find the chess board corners
-        ret, Lcorners = cv.findChessboardCorners(Lgray, (7,5), None)
-        ret, Rcorners = cv.findChessboardCorners(Lgray, (7,5), None)
+        ret, Lcorners = cv.findChessboardCorners(Lgray, (9,6), None)
+        ret, Rcorners = cv.findChessboardCorners(Lgray, (9,6), None)
     
         # If found, add object points, image points (after refining them)
         if ret == True:
@@ -95,11 +95,11 @@ def calstereo(mtx1,mtx2,dist1,dist2, folder_cam_left, folder_cam_right):
 
             #print("\n\n",corners2)
             # Draw and display the corners
-            cv.drawChessboardCorners(Limg, (7,5), corners2, ret)
+            cv.drawChessboardCorners(Limg, (9,6), corners2, ret)
             cv.imshow('img', Limg)
             cv.waitKey(500)
 
-            cv.drawChessboardCorners(Rimg, (7,5), corners1, ret)
+            cv.drawChessboardCorners(Rimg, (9,6), corners1, ret)
             cv.imshow('img', Rimg)
             cv.waitKey(500)
     
@@ -141,14 +141,16 @@ dst = cv.undistort(img, mtx, dist, None, newcameramtx)
 x, y, w, h = roi
 dst = dst[y:y+h, x:x+w]
 cv.imwrite('calibresult.png', dst)"""
-
-mtx1, dist1 = calcam("webcam_L/*.jpg")
-mtx2, dist2 = calcam("webcam_R/*.jpg")
-R,T = calstereo(mtx1,mtx2,dist1,dist2,"webcam_L/*.jpg","webcam_R/*.jpg")
+print(cv.imread("camera2/camera_2_image_20250512_143203.jpg").shape)
+mtx1, dist1 = calcam("camera1/*.jpg")
+print("Mx1 ", mtx1)
+mtx2, dist2 = calcam("camera2/*.jpg")
+print("Mx2 ", mtx2)
+R,T = calstereo(mtx1,mtx2,dist1,dist2,"camera1/*.jpg","camera2/*.jpg")
 print("stereo Rotation",R)
 print("sterao translation",T)
 
-#RT matrix for C1 is identity.
+#RT matrix for C1 is identity. 
 RT1 = np.concatenate([np.eye(3), [[0],[0],[0]]], axis = -1)
 P1 = mtx1 @ RT1 #projection matrix for C1
  
