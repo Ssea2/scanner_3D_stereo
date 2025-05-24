@@ -8,6 +8,13 @@ import matplotlib.pyplot as plt
 # mettre l'objet a 1.7m 
 
 def calcam(img_folder):
+    """
+    @param:
+        -img_folder :str: chemin vers le dossier qui contient les images de calibration
+    @return:
+        -mtx :array: la matrice des parametres intrinsèque de la caméra
+        -dist :array: la list des coeficients de distortion
+    """
         # termination criteria
     criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
     
@@ -22,6 +29,7 @@ def calcam(img_folder):
 
     images = glob.glob(img_folder)
     print(len(images))
+    c = 0
     for fname in images:
         img = cv.imread(fname)
         gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
@@ -41,6 +49,63 @@ def calcam(img_folder):
             cv.drawChessboardCorners(img, (9,6), corners2, ret)
             cv.imshow('img', img)
             cv.waitKey(500)
+            cv.imwrite(f"img_{c}.jpg", img)
+            c+=1
+    
+        cv.destroyAllWindows()
+    ### A TESTER transformer fx fy en mm 
+    """print(gray.shape)
+    print("mtx\n",mtx)
+    print("dist\n",dist)
+    print("rvecs\n",rvecs)
+    print("tvecs\n",tvecs)"""
+    ret, mtx, dist, rvecs, tvecs = cv.calibrateCamera(objpoints, imgpoints, img_size, None, None)
+    return mtx,dist
+
+def calcam(img_folder):
+    """
+    @param:
+        -img_folder :str: chemin vers le dossier qui contient les images de calibration
+    @return:
+        -mtx :array: la matrice des parametres intrinsèque de la caméra
+        -dist :array: la list des coeficients de distortion
+    """
+        # termination criteria
+    criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
+    
+    # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
+    objp = np.zeros((5*7,3), np.float32)
+    objp[:,:2] = np.mgrid[0:7,0:5].T.reshape(-1,2)
+    
+    # Arrays to store object points and image points from all the images.
+    objpoints = [] # 3d point in real world space
+    imgpoints = [] # 2d points in image plane.
+    img_size = None
+
+    images = glob.glob(img_folder)
+    print(len(images))
+    c = 0
+    for fname in images:
+        img = cv.imread(fname)
+        gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+        img_size=gray.shape[::-1]
+        # Find the chess board corners
+        ret, corners = cv.findChessboardCorners(gray, (7,5), None)
+    
+        # If found, add object points, image points (after refining them)
+        if ret == True:
+            print(ret, fname, img.shape)
+            objpoints.append(objp)
+    
+            corners2 = cv.cornerSubPix(gray,corners, (11,11), (-1,-1), criteria)
+            imgpoints.append(corners2)
+            #print("\n\n",corners2)
+            # Draw and display the corners
+            cv.drawChessboardCorners(img, (7,5), corners2, ret)
+            cv.imshow('img', img)
+            cv.waitKey(500)
+            cv.imwrite(f"img_{c}.jpg", img)
+            c+=1
     
         cv.destroyAllWindows()
     ### A TESTER transformer fx fy en mm 
@@ -132,9 +197,9 @@ def DLT(P1, P2, point1, point2):
     print(Vh[3,0:3]/Vh[3,3])
     return Vh[3,0:3]/Vh[3,3]
 
-"""mtx, dist = calcam("img_webcam/*.jpg")
+mtx, dist = calcam("images/calibration/img_webcam/*.jpg")
 print(mtx,dist)
-img = cv.imread('img_webcam/img_119.jpg')
+img = cv.imread('images/calibration/img_webcam/img_119.jpg')
 h,  w = img.shape[:2]
 newcameramtx, roi = cv.getOptimalNewCameraMatrix(mtx, dist, (w,h), 1, (w,h))
 # undistort
@@ -143,7 +208,7 @@ dst = cv.undistort(img, mtx, dist, None, newcameramtx)
 # crop the image
 x, y, w, h = roi
 dst = dst[y:y+h, x:x+w]
-cv.imwrite('calibresult.png', dst)"""
+cv.imwrite('calibresult.png', dst)
 
 #print(cv.imread("camera2/camera_2_image_20250512_143203.jpg").shape)
 """mtx1, dist1 = calcam("images/calibration/camera1_te/*.jpg")
