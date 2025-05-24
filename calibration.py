@@ -1,13 +1,9 @@
-import aravis.version
 import numpy as np
 import cv2 as cv
 import glob
 import faulthandler
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
-import aravis
-
-print(aravis.version.__version__)
 
 # mettre l'objet a 1.7m 
 
