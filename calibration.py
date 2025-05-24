@@ -1,7 +1,13 @@
+import aravis.version
 import numpy as np
 import cv2 as cv
 import glob
+import faulthandler
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
+import aravis
 
+print(aravis.version.__version__)
 
 # mettre l'objet a 1.7m 
 
@@ -29,6 +35,7 @@ def calcam(img_folder):
     
         # If found, add object points, image points (after refining them)
         if ret == True:
+            print(ret, fname, img.shape)
             objpoints.append(objp)
     
             corners2 = cv.cornerSubPix(gray,corners, (11,11), (-1,-1), criteria)
@@ -141,14 +148,15 @@ dst = cv.undistort(img, mtx, dist, None, newcameramtx)
 x, y, w, h = roi
 dst = dst[y:y+h, x:x+w]
 cv.imwrite('calibresult.png', dst)"""
-print(cv.imread("camera2/camera_2_image_20250512_143203.jpg").shape)
-mtx1, dist1 = calcam("camera1/*.jpg")
-print("Mx1 ", mtx1)
-mtx2, dist2 = calcam("camera2/*.jpg")
-print("Mx2 ", mtx2)
-R,T = calstereo(mtx1,mtx2,dist1,dist2,"camera1/*.jpg","camera2/*.jpg")
-print("stereo Rotation",R)
-print("sterao translation",T)
+
+#print(cv.imread("camera2/camera_2_image_20250512_143203.jpg").shape)
+"""mtx1, dist1 = calcam("images/calibration/camera1_te/*.jpg")
+print("\n\n\n\n\n\nMx1 ", mtx1)
+mtx2, dist2 = calcam("images/calibration/camera2_te/*.jpg")
+print("\n\n\n\n\n\nMx2 ", mtx2)
+R,T = calstereo(mtx1,mtx2,dist1,dist2,"images/calibration/camera1/*.jpg","images/calibration/camera2/*.jpg")
+print("\n\n\n\n\n\nstereo Rotation",R)
+print("\n\n\n\n\n\n sterao translation",T)
 
 #RT matrix for C1 is identity. 
 RT1 = np.concatenate([np.eye(3), [[0],[0],[0]]], axis = -1)
@@ -156,4 +164,149 @@ P1 = mtx1 @ RT1 #projection matrix for C1
  
 #RT matrix for C2 is the R and T obtained from stereo calibration.
 RT2 = np.concatenate([R, T], axis = -1)
-P2 = mtx2 @ RT2 #projection matrix for C2
+P2 = mtx2 @ RT2 #projection matrix for C2"""
+"""
+print(img1.shape)
+print(img2.shape)
+# Initiate SIFT detector
+sift = cv.SIFT_create()
+ 
+# find the keypoints and descriptors with SIFT
+kp1, des1 = sift.detectAndCompute(img1,None)
+kp2, des2 = sift.detectAndCompute(img2,None)
+ 
+# FLANN parameters
+FLANN_INDEX_KDTREE = 1
+index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
+search_params = dict(checks=50)   # or pass empty dictionary
+ 
+flann = cv.FlannBasedMatcher(index_params,search_params)
+ 
+matches = flann.knnMatch(des1,des2,k=2)
+ 
+# Need to draw only good matches, so create a mask
+matchesMask = [[0,0] for i in range(len(matches))]
+ 
+# ratio test as per Lowe's paper
+for i,(m,n) in enumerate(matches):
+    if m.distance < n.distance:
+        matchesMask[i]=[1,0]
+ 
+draw_params = dict(matchColor = (0,255,0),
+                   singlePointColor = (255,0,0),
+                   matchesMask = matchesMask,
+                   flags = cv.DrawMatchesFlags_DEFAULT)
+ 
+img3 = cv.drawMatchesKnn(img1,kp1,img2,kp2,matches,None,**draw_params)
+ 
+cv.imshow("t",img3)
+cv.waitKey(0)
+cv.destroyAllWindows()
+
+
+def match_features(img1_path, img2_path):
+    # 1. Chargement des images
+    img1 = cv.imread(img1_path)
+    img2 = cv.imread(img2_path)
+    
+    # Vérification du chargement correct des images
+    if img1 is None or img2 is None:
+        print("Erreur: Impossible de charger une ou les deux images")
+        return
+    
+    # 2. Conversion en niveaux de gris
+    gray1 = cv.cvtColor(img1, cv.COLOR_BGR2GRAY)
+    gray2 = cv.cvtColor(img2, cv.COLOR_BGR2GRAY)
+    
+    # 3. Détection des points d'intérêt et calcul des descripteurs
+    sift = cv.SIFT_create()
+    keypoints1, descriptors1 = sift.detectAndCompute(gray1, None)
+    keypoints2, descriptors2 = sift.detectAndCompute(gray2, None)
+    
+    # Vérification si les descripteurs sont vides
+    if descriptors1 is None or descriptors2 is None or len(descriptors1) == 0 or len(descriptors2) == 0:
+        print("Erreur: Impossible de trouver des descripteurs dans une ou les deux images")
+        return
+    
+    # Vérification supplémentaire: les descripteurs doivent être du même type
+    if descriptors1.dtype != np.float32:
+        descriptors1 = np.float32(descriptors1)
+    if descriptors2.dtype != np.float32:
+        descriptors2 = np.float32(descriptors2)
+    
+    # 4. Matching des descripteurs
+    # Utilisation de BFMatcher au lieu de FLANN pour plus de robustesse
+    bf = cv.BFMatcher()
+    
+    # Utilisez le matcher approprié et avec gestion d'erreurs
+    try:
+        # Vérifiez si nous avons assez de descripteurs pour kNN avec k=2
+        k = min(2, len(descriptors2))
+        matches = bf.knnMatch(descriptors1, descriptors2, k=k)
+        
+        # 5. Filtrage des bons matchs avec le test de ratio de Lowe (uniquement si k=2)
+        good_matches = []
+        if k == 2:
+            for pair in matches:
+                if len(pair) == 2:  # S'assurer que nous avons bien deux matches
+                    m, n = pair
+                    if m.distance < 0.9* n.distance:
+                        good_matches.append(m)
+        else:
+            # Si k=1, prenez simplement tous les matches
+            good_matches = [m[0] for m in matches if len(m) > 0]
+            
+    except cv.error as e:
+        print(f"Erreur lors du matching: {e}")
+        # Solution alternative: utilisation de matcher.match() au lieu de knnMatch
+        matches = bf.match(descriptors1, descriptors2)
+        good_matches = sorted(matches, key=lambda x: x.distance)[:30]  # Prendre les 30 meilleurs
+    
+    # 6. Affichage des résultats
+    img_matches = cv.drawMatches(img1, keypoints1, img2, keypoints2, good_matches, None, 
+                                 flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    
+    # Conversion BGR->RGB pour matplotlib
+    img_matches = cv.cvtColor(img_matches, cv.COLOR_BGR2RGB)
+    
+    cv.imshow("t",img_matches)
+    cv.waitKey(0)
+    cv.destroyAllWindows()
+
+    return keypoints1, keypoints2, good_matches
+
+# Utilisation
+key1,key2,matchs=match_features('images/test/sc3/screen1-1/camera_1_image_20250512_181245.jpg', 'images/test/sc3/screen2-1/camera_2_image_20250512_181245.jpg')
+
+uvs1= []
+uvs2 = []
+
+for m in matchs:
+    uvs1.append(key1[m.queryIdx].pt)
+    uvs2.append(key2[m.trainIdx].pt)
+
+print(uvs1)
+print(uvs2)
+
+p3ds = []
+for uv2, uv1 in zip(uvs1, uvs2):
+    _p3d = DLT(P1, P2, uv1, uv2)
+    p3ds.append(_p3d)
+p3ds = np.array(p3ds)
+
+#print(p3ds)
+
+faulthandler.enable()
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.set_xlim3d(-15, 5)
+ax.set_ylim3d(-10, 10)
+ax.set_zlim3d(10, 30)
+ 
+connections = [[0,1], [1,2], [2,3], [3,4], [1,5], [5,6], [6,7], [1,8], [1,9], [2,8], [5,9], [8,9], [0, 10], [0, 11]]
+for _c in connections:
+    print(p3ds[_c[0]])
+    print(p3ds[_c[1]])
+    ax.plot(xs = [p3ds[_c[0],0], p3ds[_c[1],0]], ys = [p3ds[_c[0],1], p3ds[_c[1],1]], zs = [p3ds[_c[0],2], p3ds[_c[1],2]], c = 'red')
+ 
+plt.show()"""
