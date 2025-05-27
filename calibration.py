@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 # mettre l'objet a 1.7m 
 
-def calcam(img_folder):
+def calcam(img_folder, chessboad_size):
     """
     @param:
         -img_folder :str: chemin vers le dossier qui contient les images de calibration
@@ -19,8 +19,8 @@ def calcam(img_folder):
     criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
     
     # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
-    objp = np.zeros((6*9,3), np.float32)
-    objp[:,:2] = np.mgrid[0:9,0:6].T.reshape(-1,2)
+    objp = np.zeros((chessboad_size[0]*chessboad_size[1],3), np.float32)
+    objp[:,:2] = np.mgrid[0:chessboad_size[1],0:chessboad_size[0]].T.reshape(-1,2) * 25 
     
     # Arrays to store object points and image points from all the images.
     objpoints = [] # 3d point in real world space
@@ -32,10 +32,13 @@ def calcam(img_folder):
 
     for fname in images:
         img = cv.imread(fname)
+        if img is None:
+            print(f"Warning: Could not read image {fname}")
+            continue
         gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
         img_size=gray.shape[::-1]
         # Find the chess board corners
-        ret, corners = cv.findChessboardCorners(gray, (9,6), None)
+        ret, corners = cv.findChessboardCorners(gray, (chessboad_size[1],chessboad_size[0]), None)
     
         # If found, add object points, image points (after refining them)
         if ret == True:
@@ -46,7 +49,7 @@ def calcam(img_folder):
             imgpoints.append(corners2)
             #print("\n\n",corners2)
             # Draw and display the corners
-            cv.drawChessboardCorners(img, (9,6), corners2, ret)
+            cv.drawChessboardCorners(img, (chessboad_size[1],chessboad_size[0]), corners2, ret)
             cv.imshow('img', img)
             cv.waitKey(500)
 
@@ -63,13 +66,13 @@ def calcam(img_folder):
 
 
 
-def calstereo(mtx1,mtx2,dist1,dist2, folder_cam_left, folder_cam_right):
+def calstereo(mtx1,mtx2,dist1,dist2, folder_cam_left, folder_cam_right, chessboad_size):
     stereocalibration_flags = cv.CALIB_FIX_INTRINSIC
     criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
 
-    objp = np.zeros((6*9,3), np.float32)
-    objp[:,:2] = np.mgrid[0:9,0:6].T.reshape(-1,2)
+    objp = np.zeros((chessboad_size[0]*chessboad_size[1],3), np.float32)
+    objp[:,:2] = np.mgrid[0:chessboad_size[1],0:chessboad_size[0]].T.reshape(-1,2) *25
     
     # Arrays to store object points and image points from all the images.
     objpoints = [] # 3d point in real world space
@@ -77,25 +80,30 @@ def calstereo(mtx1,mtx2,dist1,dist2, folder_cam_left, folder_cam_right):
     imgpoints_right= []
     img_size = None
 
-    images_left = glob.glob(folder_cam_left)
-    print(len(images_left))
+    images_left = sorted(glob.glob(folder_cam_left))
+    #print(images_left[0])
 
-    images_right = glob.glob(folder_cam_right)
+    images_right = sorted(glob.glob(folder_cam_right))
+    #print(images_right[0])
     for Lfname, Rfname in zip(images_left,images_right):
         # cam1
         Limg = cv.imread(Lfname)
-        Lgray = cv.cvtColor(Limg, cv.COLOR_BGR2GRAY)
 
         #cam2
-        Rimg = cv.imread(Lfname)
-        Rgray = cv.cvtColor(Limg, cv.COLOR_BGR2GRAY)
+        Rimg = cv.imread(Rfname)
+        if Rimg is None or Limg is None:
+            print(f"Warning: Could not read images {Lfname} or {Rfname}")
+            continue
+
+        Lgray = cv.cvtColor(Limg, cv.COLOR_BGR2GRAY)
+        Rgray = cv.cvtColor(Rimg, cv.COLOR_BGR2GRAY)
 
         img_size=Lgray.shape[::-1]
 
 
         # Find the chess board corners
-        ret, Lcorners = cv.findChessboardCorners(Lgray, (9,6), None)
-        ret, Rcorners = cv.findChessboardCorners(Lgray, (9,6), None)
+        ret, Lcorners = cv.findChessboardCorners(Lgray, (chessboad_size[1],chessboad_size[0]), None)
+        ret, Rcorners = cv.findChessboardCorners(Rgray, (chessboad_size[1],chessboad_size[0]), None)
     
         # If found, add object points, image points (after refining them)
         if ret == True:
@@ -109,12 +117,12 @@ def calstereo(mtx1,mtx2,dist1,dist2, folder_cam_left, folder_cam_right):
 
             #print("\n\n",corners2)
             # Draw and display the corners
-            cv.drawChessboardCorners(Limg, (9,6), corners2, ret)
-            cv.imshow('img', Limg)
+            cv.drawChessboardCorners(Limg, (chessboad_size[1],chessboad_size[0]), corners2, ret)
+            cv.imshow('Left', Limg)
             cv.waitKey(500)
 
-            cv.drawChessboardCorners(Rimg, (9,6), corners1, ret)
-            cv.imshow('img', Rimg)
+            cv.drawChessboardCorners(Rimg, (chessboad_size[1],chessboad_size[0]), corners1, ret)
+            cv.imshow('Right', Rimg)
             cv.waitKey(500)
     
         cv.destroyAllWindows()
@@ -157,24 +165,23 @@ dst = dst[y:y+h, x:x+w]
 cv.imwrite('calibresult.png', dst)"""
 
 #print(cv.imread("camera2/camera_2_image_20250512_143203.jpg").shape)
-mtx1, dist1 = calcam("images/calibration/camera1_te/*.jpg")
+mtx1, dist1 = calcam("images/calibration/camera1_class/*.jpg", (5,7))
 print("\n\n\n\n\n\nMx1 ", mtx1)
-mtx2, dist2 = calcam("images/calibration/camera2_te/*.jpg")
+mtx2, dist2 = calcam("images/calibration/camera2_class/*.jpg",(5,7))
 print("\n\n\n\n\n\nMx2 ", mtx2)
-R,T = calstereo(mtx1,mtx2,dist1,dist2,"images/calibration/camera1/*.jpg","images/calibration/camera2/*.jpg")
-print("\n\n\n\n\n\nstereo Rotation",R)
-print("\n\n\n\n\n\n sterao translation",T)
+R,T = calstereo(mtx1,mtx2,dist1,dist2,"images/calibration/camera1_class/*.jpg","images/calibration/camera2_class/*.jpg",(5,7))
+# print("\n\n\n\n\n\nstereo Rotation",R)
+# print("\n\n\n\n\n\n sterao translation",T)
 
-#RT matrix for C1 is identity. 
-RT1 = np.concatenate([np.eye(3), [[0],[0],[0]]], axis = -1)
-P1 = mtx1 @ RT1 #projection matrix for C1
+# #RT matrix for C1 is identity. 
+# RT1 = np.concatenate([np.eye(3), [[0],[0],[0]]], axis = -1)
+# P1 = mtx1 @ RT1 #projection matrix for C1
  
-#RT matrix for C2 is the R and T obtained from stereo calibration.
-RT2 = np.concatenate([R, T], axis = -1)
-P2 = mtx2 @ RT2 #projection matrix for C2"""
+# #RT matrix for C2 is the R and T obtained from stereo calibration.
+# RT2 = np.concatenate([R, T], axis = -1)
+# P2 = mtx2 @ RT2 #projection matrix for C2"""
 
-print(P1)
-print(P2)
+print(f"{np.linalg.norm(T):.2f}")
 """
 print(img1.shape)
 print(img2.shape)
