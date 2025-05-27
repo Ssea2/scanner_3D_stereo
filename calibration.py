@@ -28,7 +28,7 @@ def calcam(img_folder, chessboad_size, square_size):
     img_size = None
 
     images = glob.glob(img_folder)
-    print(len(images))
+    #print(len(images))
 
     for fname in images:
         img = cv.imread(fname)
@@ -42,7 +42,7 @@ def calcam(img_folder, chessboad_size, square_size):
     
         # If found, add object points, image points (after refining them)
         if ret == True:
-            print(ret, fname, img.shape)
+            #print(ret, fname, img.shape)
             objpoints.append(objp)
     
             corners2 = cv.cornerSubPix(gray,corners, (11,11), (-1,-1), criteria)
@@ -155,79 +155,9 @@ def DLT(P1, P2, point1, point2):
     from scipy import linalg
     U, s, Vh = linalg.svd(B, full_matrices = False)
  
-    print('Triangulated point: ')
-    print(Vh[3,0:3]/Vh[3,3])
+    #print('Triangulated point: ')
+    #print(Vh[3,0:3]/Vh[3,3])
     return Vh[3,0:3]/Vh[3,3]
-
-"""mtx, dist = calcam("images/calibration/img_webcam/*.jpg")
-print(mtx,dist)
-img = cv.imread('images/calibration/img_webcam/img_119.jpg')
-h,  w = img.shape[:2]
-newcameramtx, roi = cv.getOptimalNewCameraMatrix(mtx, dist, (w,h), 1, (w,h))
-# undistort
-dst = cv.undistort(img, mtx, dist, None, newcameramtx)
-    
-# crop the image
-x, y, w, h = roi
-dst = dst[y:y+h, x:x+w]
-cv.imwrite('calibresult.png', dst)"""
-
-#print(cv.imread("camera2/camera_2_image_20250512_143203.jpg").shape)
-mtx1, dist1 = calcam("images/calibration/camera1_class/*.jpg", (5,7), 160)
-print("\n\n\n\n\n\nMx1 ", mtx1)
-mtx2, dist2 = calcam("images/calibration/camera2_class/*.jpg",(5,7), 160)
-print("\n\n\n\n\n\nMx2 ", mtx2)
-R,T = calstereo(mtx1,mtx2,dist1,dist2,"images/calibration/camera1_class/*.jpg","images/calibration/camera2_class/*.jpg",(5,7), 160)
-# print("\n\n\n\n\n\nstereo Rotation",R)
-# print("\n\n\n\n\n\n sterao translation",T)
-
-# #RT matrix for C1 is identity. 
-# RT1 = np.concatenate([np.eye(3), [[0],[0],[0]]], axis = -1)
-# P1 = mtx1 @ RT1 #projection matrix for C1
- 
-# #RT matrix for C2 is the R and T obtained from stereo calibration.
-# RT2 = np.concatenate([R, T], axis = -1)
-# P2 = mtx2 @ RT2 #projection matrix for C2"""
-
-print(f"{np.linalg.norm(T):.2f}")
-"""
-print(img1.shape)
-print(img2.shape)
-# Initiate SIFT detector
-sift = cv.SIFT_create()
- 
-# find the keypoints and descriptors with SIFT
-kp1, des1 = sift.detectAndCompute(img1,None)
-kp2, des2 = sift.detectAndCompute(img2,None)
- 
-# FLANN parameters
-FLANN_INDEX_KDTREE = 1
-index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
-search_params = dict(checks=50)   # or pass empty dictionary
- 
-flann = cv.FlannBasedMatcher(index_params,search_params)
- 
-matches = flann.knnMatch(des1,des2,k=2)
- 
-# Need to draw only good matches, so create a mask
-matchesMask = [[0,0] for i in range(len(matches))]
- 
-# ratio test as per Lowe's paper
-for i,(m,n) in enumerate(matches):
-    if m.distance < n.distance:
-        matchesMask[i]=[1,0]
- 
-draw_params = dict(matchColor = (0,255,0),
-                   singlePointColor = (255,0,0),
-                   matchesMask = matchesMask,
-                   flags = cv.DrawMatchesFlags_DEFAULT)
- 
-img3 = cv.drawMatchesKnn(img1,kp1,img2,kp2,matches,None,**draw_params)
- 
-cv.imshow("t",img3)
-cv.waitKey(0)
-cv.destroyAllWindows()
-
 
 def match_features(img1_path, img2_path):
     # 1. Chargement des images
@@ -275,7 +205,7 @@ def match_features(img1_path, img2_path):
             for pair in matches:
                 if len(pair) == 2:  # S'assurer que nous avons bien deux matches
                     m, n = pair
-                    if m.distance < 0.9* n.distance:
+                    if m.distance < 1* n.distance:
                         good_matches.append(m)
         else:
             # Si k=1, prenez simplement tous les matches
@@ -300,9 +230,105 @@ def match_features(img1_path, img2_path):
 
     return keypoints1, keypoints2, good_matches
 
-# Utilisation
-key1,key2,matchs=match_features('images/test/sc3/screen1-1/camera_1_image_20250512_181245.jpg', 'images/test/sc3/screen2-1/camera_2_image_20250512_181245.jpg')
+def save_ply(filename, points, colors=None):
+    """
+    Enregistre des points 3D (et éventuellement des couleurs) dans un fichier PLY.
 
+    :param filename: nom du fichier de sortie (.ply)
+    :param points: np.array de forme (N, 3)
+    :param colors: np.array de forme (N, 3), valeurs entre 0 et 255 (optionnel)
+    """
+    assert points.shape[1] == 3, "Les points doivent être en 3D"
+
+    if colors is not None:
+        assert colors.shape == points.shape, "Les couleurs doivent correspondre aux points"
+        points_colors = np.hstack([points, colors])
+    else:
+        points_colors = points
+
+    with open(filename, 'w') as f:
+        f.write("ply\n")
+        f.write("format ascii 1.0\n")
+        f.write(f"element vertex {len(points)}\n")
+        f.write("property float x\n")
+        f.write("property float y\n")
+        f.write("property float z\n")
+        if colors is not None:
+            f.write("property uchar red\n")
+            f.write("property uchar green\n")
+            f.write("property uchar blue\n")
+        f.write("end_header\n")
+
+        for p in points_colors:
+            line = ' '.join(map(str, p))
+            f.write(line + '\n')
+
+def afficher_points_3D(points, couleurs=None):
+    """
+    Affiche une liste de points 3D.
+
+    :param points: np.array de forme (N, 3)
+    :param couleurs: np.array de forme (N, 3) avec des valeurs RGB entre 0 et 1 (optionnel)
+    """
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    xs, ys, zs = points[:, 0], points[:, 1], points[:, 2]
+    print(len(xs),len(ys), len(zs))
+    print(min(xs), max(xs))
+    print(min(ys), max(ys))
+    print(min(zs), max(zs))
+    if couleurs is not None:
+        ax.scatter(xs, ys, zs, c=couleurs, marker='o')
+    else:
+        ax.scatter(xs, ys, zs, c='blue', marker='o')
+
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    plt.show()
+
+"""mtx, dist = calcam("images/calibration/img_webcam/*.jpg")
+print(mtx,dist)
+img = cv.imread('images/calibration/img_webcam/img_119.jpg')
+h,  w = img.shape[:2]
+newcameramtx, roi = cv.getOptimalNewCameraMatrix(mtx, dist, (w,h), 1, (w,h))
+# undistort
+dst = cv.undistort(img, mtx, dist, None, newcameramtx)
+    
+# crop the image
+x, y, w, h = roi
+dst = dst[y:y+h, x:x+w]
+cv.imwrite('calibresult.png', dst)"""
+
+#print(cv.imread("camera2/camera_2_image_20250512_143203.jpg").shape)
+mtx1, dist1 = calcam("images/calibration/camera1_class/*.jpg", (5,7), 160)
+print("\n\n\n\n\n\nMx1 ", mtx1)
+mtx2, dist2 = calcam("images/calibration/camera2_class/*.jpg",(5,7), 160)
+print("\n\n\n\n\n\nMx2 ", mtx2)
+R,T = calstereo(mtx1,mtx2,dist1,dist2,"images/calibration/camera1_class/*.jpg","images/calibration/camera2_class/*.jpg",(5,7), 160)
+print("\n\n\n\n\n\nstereo Rotation",R)
+print("\n\n\n\n\n\n sterao translation",T)
+
+#RT matrix for C1 is identity. 
+RT1 = np.concatenate([np.eye(3), [[0],[0],[0]]], axis = -1)
+P1 = mtx1 @ RT1 #projection matrix for C1
+ 
+#RT matrix for C2 is the R and T obtained from stereo calibration.
+RT2 = np.concatenate([R, T], axis = -1)
+P2 = mtx2 @ RT2 #projection matrix for C2"""
+
+print(f"{np.linalg.norm(T):.2f}")
+img1 = cv.imread("images/test/camera1_test/camera_1_image_20250527_094623.jpg",1)
+img2 = cv.imread("images/test/camera2_test/camera_2_image_20250527_094623.jpg",1)
+print(img1.shape)
+print(img2.shape)
+
+
+
+
+# Utilisation
+key1,key2,matchs=match_features('images/test/camera1_test/camera_1_image_20250527_094623.jpg', 'images/test/camera2_test/camera_2_image_20250527_094623.jpg')
 uvs1= []
 uvs2 = []
 
@@ -310,28 +336,34 @@ for m in matchs:
     uvs1.append(key1[m.queryIdx].pt)
     uvs2.append(key2[m.trainIdx].pt)
 
-print(uvs1)
-print(uvs2)
+print(min(uvs1[:,0]),max(uvs1[:,0]))
+print(min(uvs1[:,1]),max(uvs1[:,1]))
 
+print(min(uvs2[:,0]),max(uvs2[:,0]))
+print(min(uvs2[:,1]),max(uvs2[:,1]))
+#print(uvs1)
+#print(uvs2)
+"""
 p3ds = []
 for uv2, uv1 in zip(uvs1, uvs2):
     _p3d = DLT(P1, P2, uv1, uv2)
     p3ds.append(_p3d)
 p3ds = np.array(p3ds)
+print(len(p3ds))
 
-#print(p3ds)
+good_point = []
+for point in p3ds:
+    if point[2] >= 0:
+        good_point.append(point)
+    else:
+        pass
+good_point = np.array(good_point)
+    
 
-faulthandler.enable()
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.set_xlim3d(-15, 5)
-ax.set_ylim3d(-10, 10)
-ax.set_zlim3d(10, 30)
+
+save_ply("test3D", good_point)"""
+# #faulthandler.enable()
+
+
  
-connections = [[0,1], [1,2], [2,3], [3,4], [1,5], [5,6], [6,7], [1,8], [1,9], [2,8], [5,9], [8,9], [0, 10], [0, 11]]
-for _c in connections:
-    print(p3ds[_c[0]])
-    print(p3ds[_c[1]])
-    ax.plot(xs = [p3ds[_c[0],0], p3ds[_c[1],0]], ys = [p3ds[_c[0],1], p3ds[_c[1],1]], zs = [p3ds[_c[0],2], p3ds[_c[1],2]], c = 'red')
- 
-plt.show()"""
+#afficher_points_3D(good_point)
