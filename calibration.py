@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 # mettre l'objet a 1.7m 
 
-def calcam(img_folder, chessboad_size):
+def calcam(img_folder, chessboad_size, square_size):
     """
     @param:
         -img_folder :str: chemin vers le dossier qui contient les images de calibration
@@ -20,7 +20,7 @@ def calcam(img_folder, chessboad_size):
     
     # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
     objp = np.zeros((chessboad_size[0]*chessboad_size[1],3), np.float32)
-    objp[:,:2] = np.mgrid[0:chessboad_size[1],0:chessboad_size[0]].T.reshape(-1,2) * 25 
+    objp[:,:2] = np.mgrid[0:chessboad_size[1],0:chessboad_size[0]].T.reshape(-1,2) * square_size
     
     # Arrays to store object points and image points from all the images.
     objpoints = [] # 3d point in real world space
@@ -66,19 +66,19 @@ def calcam(img_folder, chessboad_size):
 
 
 
-def calstereo(mtx1,mtx2,dist1,dist2, folder_cam_left, folder_cam_right, chessboad_size):
+def calstereo(mtx1,mtx2,dist1,dist2, folder_cam_left, folder_cam_right, chessboad_size, square_size):
     stereocalibration_flags = cv.CALIB_FIX_INTRINSIC
     criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
 
     objp = np.zeros((chessboad_size[0]*chessboad_size[1],3), np.float32)
-    objp[:,:2] = np.mgrid[0:chessboad_size[1],0:chessboad_size[0]].T.reshape(-1,2) *25
+    objp[:,:2] = np.mgrid[0:chessboad_size[1],0:chessboad_size[0]].T.reshape(-1,2) *square_size
     
     # Arrays to store object points and image points from all the images.
     objpoints = [] # 3d point in real world space
     imgpoints_left = [] # 2d points in image plane.
     imgpoints_right= []
-    img_size = None
+    #img_size = None
 
     images_left = sorted(glob.glob(folder_cam_left))
     #print(images_left[0])
@@ -97,14 +97,22 @@ def calstereo(mtx1,mtx2,dist1,dist2, folder_cam_left, folder_cam_right, chessboa
 
         Lgray = cv.cvtColor(Limg, cv.COLOR_BGR2GRAY)
         Rgray = cv.cvtColor(Rimg, cv.COLOR_BGR2GRAY)
-
         img_size=Lgray.shape[::-1]
 
 
         # Find the chess board corners
         ret, Lcorners = cv.findChessboardCorners(Lgray, (chessboad_size[1],chessboad_size[0]), None)
         ret, Rcorners = cv.findChessboardCorners(Rgray, (chessboad_size[1],chessboad_size[0]), None)
-    
+
+        if Rcorners is None or Lcorners is None:
+            print(f"Warning: pas trouver le damier images {Lfname} or {Rfname}")
+            continue
+
+        if Lcorners.all() == None:
+            print("L: ",None)
+        if Rcorners.all() == None:
+            print("R: ",None)
+        
         # If found, add object points, image points (after refining them)
         if ret == True:
             objpoints.append(objp)
@@ -165,11 +173,11 @@ dst = dst[y:y+h, x:x+w]
 cv.imwrite('calibresult.png', dst)"""
 
 #print(cv.imread("camera2/camera_2_image_20250512_143203.jpg").shape)
-mtx1, dist1 = calcam("images/calibration/camera1_class/*.jpg", (5,7))
+mtx1, dist1 = calcam("images/calibration/camera1_class/*.jpg", (5,7), 160)
 print("\n\n\n\n\n\nMx1 ", mtx1)
-mtx2, dist2 = calcam("images/calibration/camera2_class/*.jpg",(5,7))
+mtx2, dist2 = calcam("images/calibration/camera2_class/*.jpg",(5,7), 160)
 print("\n\n\n\n\n\nMx2 ", mtx2)
-R,T = calstereo(mtx1,mtx2,dist1,dist2,"images/calibration/camera1_class/*.jpg","images/calibration/camera2_class/*.jpg",(5,7))
+R,T = calstereo(mtx1,mtx2,dist1,dist2,"images/calibration/camera1_class/*.jpg","images/calibration/camera2_class/*.jpg",(5,7), 160)
 # print("\n\n\n\n\n\nstereo Rotation",R)
 # print("\n\n\n\n\n\n sterao translation",T)
 
