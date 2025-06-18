@@ -230,6 +230,30 @@ def match_features(img1_path, img2_path):
 
     return keypoints1, keypoints2, good_matches
 
+def match_features(img1,img2, dist_coef=0.75):
+    # Initiate SIFT detector
+    sift = cv.SIFT_create()
+    
+    # find the keypoints and descriptors with SIFT
+    kp1, des1 = sift.detectAndCompute(img1,None)
+    kp2, des2 = sift.detectAndCompute(img2,None)
+    
+    # BFMatcher with default params
+    bf = cv.BFMatcher()
+    matches = bf.knnMatch(des1,des2,k=2)
+    
+    # Apply ratio test
+    good = []
+    for m,n in matches:
+        if m.distance < dist_coef*n.distance:
+            good.append([m])
+    
+    # cv.drawMatchesKnn expects list of lists as matches.
+    img3 = cv.drawMatchesKnn(img1,kp1,img2,kp2,good,None,flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    
+    plt.imshow(img3),plt.show()
+    return kp1,kp2,good
+
 def save_ply(filename, points, colors=None):
     """
     Enregistre des points 3D (et éventuellement des couleurs) dans un fichier PLY.
@@ -302,13 +326,37 @@ dst = dst[y:y+h, x:x+w]
 cv.imwrite('calibresult.png', dst)"""
 
 #print(cv.imread("camera2/camera_2_image_20250512_143203.jpg").shape)
-mtx1, dist1 = calcam("images/calibration/camera1_class/*.jpg", (5,7), 160)
+"""mtx1, dist1 = calcam("images/calibration/camera1_class/*.jpg", (5,7), 160)
 print("\n\n\n\n\n\nMx1 ", mtx1)
+print("\n\n\n\n\n\ndist1 ", dist1)
 mtx2, dist2 = calcam("images/calibration/camera2_class/*.jpg",(5,7), 160)
 print("\n\n\n\n\n\nMx2 ", mtx2)
-R,T = calstereo(mtx1,mtx2,dist1,dist2,"images/calibration/camera1_class/*.jpg","images/calibration/camera2_class/*.jpg",(5,7), 160)
+print("\n\n\n\n\n\ndist2 ", dist2)
+"""
+mtx1 = np.array([[2.82550979e+03, 0, 1.00859885e+03],
+ [0, 2.82912963e+03, 6.69132111e+02],
+ [0, 0, 1]])
+
+dist1 = np.array([[-2.34224060e-01,  6.27080003e-01,  1.01746496e-03, -1.18132231e-03,-2.73710219e+00]])
+
+mtx2 = np.array([[2.88615917e+03, 0.00000000e+00, 1.04558730e+03],
+ [0.00000000e+00, 2.88584584e+03, 6.25220618e+02],
+ [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]])
+
+dist2 = np.array([[-0.26686348,  0.38062676, -0.00169178, -0.00169099,  0.11280336]])
+
+
+"""R,T = calstereo(mtx1,mtx2,dist1,dist2,"images/calibration/camera1_class/*.jpg","images/calibration/camera2_class/*.jpg",(5,7), 160)
 print("\n\n\n\n\n\nstereo Rotation",R)
-print("\n\n\n\n\n\n sterao translation",T)
+print("\n\n\n\n\n\n sterao translation",T)"""
+
+R = np.array([[ 0.99981046,  0.00485584, -0.01885369],
+ [-0.00452883,  0.99983924,  0.01734903],
+ [ 0.01893491, -0.01726036,  0.99967172]])
+
+T = np.array([[-305.90722154],
+ [   1.26129154],
+ [  92.84330377]])
 
 #RT matrix for C1 is identity. 
 RT1 = np.concatenate([np.eye(3), [[0],[0],[0]]], axis = -1)
@@ -316,34 +364,53 @@ P1 = mtx1 @ RT1 #projection matrix for C1
  
 #RT matrix for C2 is the R and T obtained from stereo calibration.
 RT2 = np.concatenate([R, T], axis = -1)
-P2 = mtx2 @ RT2 #projection matrix for C2"""
+P2 = mtx2 @ RT2 #projection matrix for C2
 
-print(f"{np.linalg.norm(T):.2f}")
+#print(f"{np.linalg.norm(T):.2f}")
 img1 = cv.imread("images/test/camera1_test/camera_1_image_20250527_094623.jpg",1)
 img2 = cv.imread("images/test/camera2_test/camera_2_image_20250527_094623.jpg",1)
+
+h1,w1,_ = img1.shape
+newcameramtx1, roi1 = cv.getOptimalNewCameraMatrix(mtx1, dist1, (w1,h1), 1, (w1,h1))
+img1_undi = cv.undistort(img1, mtx1, dist1, None, newcameramtx1)
+x, y, w, h = roi1
+img1_undi = img1_undi[y:y+h, x:x+w]
+
+h2,w2,_ = img2.shape
+newcameramtx2, roi2 = cv.getOptimalNewCameraMatrix(mtx2, dist2, (w2,h2), 1, (w2,h2))
+img2_undi = cv.undistort(img2, mtx2, dist2, None, newcameramtx2)
+x, y, w, h = roi1
+img2_undi = img2_undi[y:y+h, x:x+w]
+
 print(img1.shape)
 print(img2.shape)
 
 
-
-
 # Utilisation
-key1,key2,matchs=match_features('images/test/camera1_test/camera_1_image_20250527_094623.jpg', 'images/test/camera2_test/camera_2_image_20250527_094623.jpg')
+key1,key2,matchs=match_features(img1_undi, img2_undi, 0.95)
+print("nombre de match", len(matchs))
+print("longeur de key1, key2, matchs", len(key1), len(key2), len(matchs))
 uvs1= []
 uvs2 = []
 
 for m in matchs:
-    uvs1.append(key1[m.queryIdx].pt)
-    uvs2.append(key2[m.trainIdx].pt)
+    m = m[0]
+    idx = m.queryIdx
+    if idx in range(len(key1)) and idx in range(len(key2)): # certain index ne sont pas retrouvé dans les listes
+        uvs1.append(key1[idx].pt) #key1[m.queryIdx].pt
+        uvs2.append(key2[idx].pt)
+    else:
+        print("index out of range", m)
 
-print(min(uvs1[:,0]),max(uvs1[:,0]))
+print(len(uvs1), len(uvs2))
+"""print(min(uvs1[:,0]),max(uvs1[:,0]))
 print(min(uvs1[:,1]),max(uvs1[:,1]))
 
 print(min(uvs2[:,0]),max(uvs2[:,0]))
-print(min(uvs2[:,1]),max(uvs2[:,1]))
+print(min(uvs2[:,1]),max(uvs2[:,1]))"""
 #print(uvs1)
 #print(uvs2)
-"""
+
 p3ds = []
 for uv2, uv1 in zip(uvs1, uvs2):
     _p3d = DLT(P1, P2, uv1, uv2)
@@ -359,11 +426,11 @@ for point in p3ds:
         pass
 good_point = np.array(good_point)
     
+"""
 
-
-save_ply("test3D", good_point)"""
+#save_ply("test3D", good_point)
 # #faulthandler.enable()
 
 
  
-#afficher_points_3D(good_point)
+#afficher_points_3D(good_point)"""
