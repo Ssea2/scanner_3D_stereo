@@ -326,13 +326,13 @@ dst = dst[y:y+h, x:x+w]
 cv.imwrite('calibresult.png', dst)"""
 
 #print(cv.imread("camera2/camera_2_image_20250512_143203.jpg").shape)
-"""mtx1, dist1 = calcam("images/calibration/camera1_class/*.jpg", (5,7), 160)
+"""mtx1, dist1 = calcam("images/calibration/camera1_class/*.jpg", (5,7), 1)
 print("\n\n\n\n\n\nMx1 ", mtx1)
 print("\n\n\n\n\n\ndist1 ", dist1)
-mtx2, dist2 = calcam("images/calibration/camera2_class/*.jpg",(5,7), 160)
+mtx2, dist2 = calcam("images/calibration/camera2_class/*.jpg",(5,7), 1)
 print("\n\n\n\n\n\nMx2 ", mtx2)
-print("\n\n\n\n\n\ndist2 ", dist2)
-"""
+print("\n\n\n\n\n\ndist2 ", dist2)"""
+
 mtx1 = np.array([[2.82550979e+03, 0, 1.00859885e+03],
  [0, 2.82912963e+03, 6.69132111e+02],
  [0, 0, 1]])
@@ -346,17 +346,25 @@ mtx2 = np.array([[2.88615917e+03, 0.00000000e+00, 1.04558730e+03],
 dist2 = np.array([[-0.26686348,  0.38062676, -0.00169178, -0.00169099,  0.11280336]])
 
 
-"""R,T = calstereo(mtx1,mtx2,dist1,dist2,"images/calibration/camera1_class/*.jpg","images/calibration/camera2_class/*.jpg",(5,7), 160)
-print("\n\n\n\n\n\nstereo Rotation",R)
-print("\n\n\n\n\n\n sterao translation",T)"""
+#R,T = calstereo(mtx1,mtx2,dist1,dist2,"images/calibration/camera1_class/*.jpg","images/calibration/camera2_class/*.jpg",(5,7), 1)
+#print("\n\n\n\n\n\nstereo Rotation",R)
+#print("\n\n\n\n\n\n sterao translation",T)
 
-R = np.array([[ 0.99981046,  0.00485584, -0.01885369],
+"""R = np.array([[ 0.99981046,  0.00485584, -0.01885369],
  [-0.00452883,  0.99983924,  0.01734903],
  [ 0.01893491, -0.01726036,  0.99967172]])
 
 T = np.array([[-305.90722154],
  [   1.26129154],
- [  92.84330377]])
+ [  92.84330377]])"""
+
+R = np.array([[ 0.99981046,  0.00485584, -0.01885369],
+ [-0.00452883,  0.99983924,  0.01734904],
+ [ 0.0189349,  -0.01726036,  0.99967172]])
+
+T = np.array([[-1.91192012],
+ [ 0.00788308],
+ [ 0.58027055]])
 
 #RT matrix for C1 is identity. 
 RT1 = np.concatenate([np.eye(3), [[0],[0],[0]]], axis = -1)
@@ -416,7 +424,8 @@ for uv2, uv1 in zip(uvs1, uvs2):
     _p3d = DLT(P1, P2, uv1, uv2)
     p3ds.append(_p3d)
 p3ds = np.array(p3ds)
-print(len(p3ds))
+print("len p3ds",len(p3ds))
+print("max z", max( [i[2] for i in p3ds]))
 
 good_point = []
 for point in p3ds:
@@ -425,12 +434,24 @@ for point in p3ds:
     else:
         pass
 good_point = np.array(good_point)
-    
+print("len good point",len(good_point))
 """
 
 #save_ply("test3D", good_point)
 # #faulthandler.enable()
 
 
- 
-#afficher_points_3D(good_point)"""
+"""
+x = [ i[0] for i in good_point]
+y = [ i[1] for i in good_point]
+
+x1 = [j[0] for j in uvs1]
+y1 = [j[1] for j in uvs1]
+
+x2 = [j[0] for j in uvs2]
+y2 = [j[1] for j in uvs2]
+
+plt.scatter(x2,y2)
+plt.show()
+
+afficher_points_3D(p3ds)
