@@ -7,4 +7,4 @@ architecture du projet
 * images: contient une parties des images prise par la classe pour réaliser les differentes
 * result_cal_mono: contient des images avec les coins du damier detecté
 * compte_rendu : contient mon compte rendu au format odt et pdf\
-le reste des fichier de test
+\le reste des fichier de test
